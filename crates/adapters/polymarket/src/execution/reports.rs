@@ -45,7 +45,7 @@ use super::{
         FillContext, FillReportScope, ResolvedBalanceScope, TargetOrderReportScope,
         apply_fill_time_filters, build_fill_reports_from_trades,
         build_reconciliation_position_reports, build_target_order_report,
-        cap_order_report_filled_qty, confirmed_filled_quantities,
+        cap_order_report_filled_qty, confirmed_filled_quantities, non_reopened_voided_before_leg,
         normalize_terminal_order_report_quantity, venue_leg_filled_before_and_quantity,
         venue_qty_matches,
     },
@@ -876,6 +876,12 @@ impl PolymarketExecutionClient {
             let filled_before_leg = promotion
                 .quantity
                 .checked_sub(promotion.leg_quantity)
+                .and_then(|qty| {
+                    qty.checked_sub(non_reopened_voided_before_leg(
+                        &cached_order,
+                        promotion.venue_order_id,
+                    )?)
+                })
                 .context("replacement venue-leg quantity exceeds logical quantity")?;
             report.client_order_id = Some(promotion.client_order_id);
             report.quantity = promotion.quantity;
